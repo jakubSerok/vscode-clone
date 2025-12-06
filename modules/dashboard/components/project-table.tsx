@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import type { Project } from "../types";
+import { toggleStarMarked } from "../actions";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -42,7 +44,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
-import { useState } from "react";
 import {
   MoreHorizontal,
   Edit3,
@@ -72,12 +73,12 @@ interface EditProjectData {
 }
 
 export default function ProjectTable({
-  projects,
+  projects: initialProjects,
   onUpdateProject,
   onDeleteProject,
   onDuplicateProject,
-
 }: ProjectTableProps) {
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -120,9 +121,36 @@ export default function ProjectTable({
     }
   };
 
-  const handleMarkasFavorite = async (project: Project) => {
-    //    Write your logic here
-  };
+const handleMarkasFavorite = async (project: Project) => {
+  try {
+    const res = await toggleStarMarked(project.id, !project.Starmark?.[0]?.isMarked);
+    const { success, error, isMarked } = res;
+
+    if (error || !success) {
+      throw new Error(error || "Failed to update favorite status");
+    }
+
+    // Update the UI with the new favorite status
+    const updatedProjects = projects.map(p => 
+      p.id === project.id 
+        ? { 
+            ...p, 
+            Starmark: [{ isMarked }] 
+          } 
+        : p
+    );
+    setProjects(updatedProjects);
+
+    toast.success(
+      isMarked 
+        ? "Added to Favorites successfully" 
+        : "Removed from Favorites successfully"
+    );
+  } catch (error) {
+    console.error("Failed to toggle favorite status:", error);
+    toast.error("Failed to update favorite status");
+  }
+};
 
   const handleDeleteProject = async () => {
     if (!selectedProject || !onDeleteProject) return;
@@ -228,7 +256,11 @@ export default function ProjectTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem asChild>
-                        <MarkedToggleButton markedForRevision={project.Starmark[0]?.isMarked} id={project.id} />
+                        <MarkedToggleButton 
+                        markedForRevision={project.Starmark?.[0]?.isMarked || false} 
+                        id={project.id} 
+                        onToggle={() => handleMarkasFavorite(project)}
+                      />
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link

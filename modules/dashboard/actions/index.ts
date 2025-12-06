@@ -151,3 +151,4 @@ export const duplicateProjectById = async (id: string) => {
     console.error("Error duplicating project:", error);
   }
 };
+

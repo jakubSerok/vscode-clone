@@ -7,8 +7,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { Separator } from "@/components/ui/separator";
-import { SidebarInset,SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
@@ -16,92 +21,226 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import LoadingStep from "@/modules/playground/components/loader";
+import {PlaygroundEditor} from "@/modules/playground/components/playground-editor";
 import { TemplateFileTree } from "@/modules/playground/components/playground-explorer";
+
+import { useFileExplorer } from "@/modules/playground/hooks/useFileExplorer";
 import { usePlayground } from "@/modules/playground/hooks/usePlaygraound";
-import { TemplateFile, TemplateFolder } from "@/modules/playground/lib/path-to-json";
-import { AlertCircle, FileText, FolderOpen, Save, Settings, X } from "lucide-react";
+import { findFilePath } from "@/modules/playground/lib";
+import {
+  TemplateFile,
+  TemplateFolder,
+} from "@/modules/playground/lib/path-to-json";
+
+import {
+  AlertCircle,
+  Bot,
+  FileText,
+  FolderOpen,
+  Save,
+  Settings,
+  X,
+} from "lucide-react";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 const MainPlaygroundPage = () => {
   const { id } = useParams<{ id: string }>();
-  const [isPreviewVisible, setIsPreviewVisible] = useState(true);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
 
   const { playgroundData, templateData, isLoading, error, saveTemplateData } =
     usePlayground(id);
 
-  const [activeFileId, setActiveFileId] = useState<string | null>(null);
-  const [openFiles, setOpenFiles] = useState<Array<{
-    id: string;
-    filename: string;
-    fileExtension: string;
-    content: string;
-    hasUnsavedChanges: boolean;
-  }>>([]);
+  const {
+    setTemplateData,
+    setActiveFileId,
+    setPlaygroundId,
+    setOpenFiles,
+    activeFileId,
+    closeAllFiles,
+    closeFile,
+    openFile,
+    openFiles,
 
-  const closeFile = (fileId: string) => {
-    setOpenFiles((prev) => prev.filter((file) => file.id !== fileId));
-  };
+    handleAddFile,
+    handleAddFolder,
+    handleDeleteFile,
+    handleDeleteFolder,
+    handleRenameFile,
+    handleRenameFolder,
+    updateFileContent
+  } = useFileExplorer();
 
-  const closeAllFiles = () => {
-    setOpenFiles([]);
-  };
+  const lastSyncedContent = useRef<Map<string, string>>(new Map());
 
-  const openFile = (file: {
-    id: string;
-    filename: string;
-    fileExtension: string;
-    content: string;
-  }) => {
-    setOpenFiles((prev) => {
-      const exists = prev.some((f) => f.id === file.id);
-      if (exists) return prev;
-      return [...prev, { ...file, hasUnsavedChanges: false }];
-    });
-    setActiveFileId(file.id);
-  };
+  useEffect(() => {
+    setPlaygroundId(id);
+  }, [id, setPlaygroundId]);
+
+  useEffect(() => {
+    if (templateData && !openFiles.length) {
+      setTemplateData(templateData);
+    }
+  }, [templateData, setTemplateData, openFiles.length]);
+
+  // Create wrapper functions that pass saveTemplateData
+  const wrappedHandleAddFile = useCallback(
+    (newFile: TemplateFile, parentPath: string) => {
+      return handleAddFile(
+        newFile,
+        parentPath,       
+        saveTemplateData
+      );
+    },
+    [handleAddFile, saveTemplateData]
+  );
+
+  const wrappedHandleAddFolder = useCallback(
+    (newFolder: TemplateFolder, parentPath: string) => {
+      return handleAddFolder(newFolder, parentPath, null, saveTemplateData);
+    },
+    [handleAddFolder, saveTemplateData]
+  );
+
+  const wrappedHandleDeleteFile = useCallback(
+    (file: TemplateFile, parentPath: string) => {
+      return handleDeleteFile(file, parentPath, saveTemplateData);
+    },
+    [handleDeleteFile, saveTemplateData]
+  );
+
+  const wrappedHandleDeleteFolder = useCallback(
+    (folder: TemplateFolder, parentPath: string) => {
+      return handleDeleteFolder(folder, parentPath, saveTemplateData);
+    },
+    [handleDeleteFolder, saveTemplateData]
+  );
+
+  const wrappedHandleRenameFile = useCallback(
+    (
+      file: TemplateFile,
+      newFilename: string,
+      newExtension: string,
+      parentPath: string
+    ) => {
+      return handleRenameFile(
+        file,
+        newFilename,
+        newExtension,
+        parentPath,
+        saveTemplateData
+      );
+    },
+    [handleRenameFile, saveTemplateData]
+  );
+
+  const wrappedHandleRenameFolder = useCallback(
+    (folder: TemplateFolder, newFolderName: string, parentPath: string) => {
+      return handleRenameFolder(
+        folder,
+        newFolderName,
+        parentPath,
+        saveTemplateData
+      );
+    },
+    [handleRenameFolder, saveTemplateData]
+  );
 
   const activeFile = openFiles.find((file) => file.id === activeFileId);
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges);
 
   const handleFileSelect = (file: TemplateFile) => {
-    openFile({
-      id: `${file.filename}-${Date.now()}`,
-      filename: file.filename,
-      fileExtension: file.fileExtension,
-      content: file.content || '',
-    });
+    openFile(file);
   };
 
-  const handleSave = useCallback(async (fileId?: string) => {
-    const targetFileId = fileId || activeFileId;
-    if (!targetFileId) return;
+  const handleSave = useCallback(
+    async (fileId?: string) => {
+      const targetFileId = fileId || activeFileId;
+      if (!targetFileId) return;
 
-    const fileToSave = openFiles.find((f) => f.id === targetFileId);
-    if (!fileToSave) return;
+      const fileToSave = openFiles.find((f) => f.id === targetFileId);
 
-    try {
-      // Update the file's content in the open files
-      const updatedOpenFiles = openFiles.map((f) =>
-        f.id === targetFileId
-          ? {
-              ...f,
-              hasUnsavedChanges: false,
+      if (!fileToSave) return;
+
+      const latestTemplateData = useFileExplorer.getState().templateData;
+      if (!latestTemplateData) return
+
+      try {
+            const filePath = findFilePath(fileToSave, latestTemplateData);
+        if (!filePath) {
+          toast.error(
+            `Could not find path for file: ${fileToSave.filename}.${fileToSave.fileExtension}`
+          );
+          return;
+        }
+
+   const updatedTemplateData = JSON.parse(
+          JSON.stringify(latestTemplateData)
+        );
+
+        // @ts-ignore
+          const updateFileContent = (items: any[]) =>
+            // @ts-ignore
+          items.map((item) => {
+            if ("folderName" in item) {
+              return { ...item, items: updateFileContent(item.items) };
+            } else if (
+              item.filename === fileToSave.filename &&
+              item.fileExtension === fileToSave.fileExtension
+            ) {
+              return { ...item, content: fileToSave.content };
             }
-          : f
-      );
-      
-      setOpenFiles(updatedOpenFiles);
-      toast.success(`Saved ${fileToSave.filename}.${fileToSave.fileExtension}`);
-    } catch (error) {
-      console.error("Error saving file:", error);
-      toast.error(`Failed to save ${fileToSave.filename}.${fileToSave.fileExtension}`);
-    }
-  }, [activeFileId, openFiles]);
+            return item;
+          });
+        updatedTemplateData.items = updateFileContent(
+          updatedTemplateData.items
+        );
 
-  const handleSaveAll = async () => {
+        const newTemplateData = await saveTemplateData(updatedTemplateData);
+        setTemplateData(newTemplateData || updatedTemplateData);
+// Update open files
+        const updatedOpenFiles = openFiles.map((f) =>
+          f.id === targetFileId
+            ? {
+                ...f,
+                content: fileToSave.content,
+                originalContent: fileToSave.content,
+                hasUnsavedChanges: false,
+              }
+            : f
+        );
+        setOpenFiles(updatedOpenFiles);
+
+    toast.success(
+          `Saved ${fileToSave.filename}.${fileToSave.fileExtension}`
+        );
+      } catch (error) {
+         console.error("Error saving file:", error);
+        toast.error(
+          `Failed to save ${fileToSave.filename}.${fileToSave.fileExtension}`
+        );
+        throw error;
+      }
+    },
+    [
+      activeFileId,
+      openFiles,
+      saveTemplateData,
+      setTemplateData,
+      setOpenFiles,
+    ]
+  );
+
+    const handleSaveAll = async () => {
     const unsavedFiles = openFiles.filter((f) => f.hasUnsavedChanges);
+
     if (unsavedFiles.length === 0) {
       toast.info("No unsaved changes");
       return;
@@ -115,17 +254,17 @@ const MainPlaygroundPage = () => {
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "s") {
-        e.preventDefault();
-        handleSave();
+
+  useEffect(()=>{
+    const handleKeyDown = (e:KeyboardEvent)=>{
+      if(e.ctrlKey && e.key === "s"){
+        e.preventDefault()
+        handleSave()
       }
-    };
-    
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
+    }
+     window.addEventListener("keydown", handleKeyDown);
+     return () => window.removeEventListener("keydown", handleKeyDown);
+  },[handleSave]);
 
   if (error) {
     return (
@@ -150,10 +289,18 @@ const MainPlaygroundPage = () => {
           <h2 className="text-xl font-semibold mb-6 text-center">
             Loading Playground
           </h2>
-          <div className="space-y-2">
-            <div className="h-4 bg-gray-200 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          <div className="mb-8">
+            <LoadingStep
+              currentStep={1}
+              step={1}
+              label="Loading playground data"
+            />
+            <LoadingStep
+              currentStep={2}
+              step={2}
+              label="Setting up environment"
+            />
+            <LoadingStep currentStep={3} step={3} label="Ready to code" />
           </div>
         </div>
       </div>
@@ -179,10 +326,16 @@ const MainPlaygroundPage = () => {
     <TooltipProvider>
       <>
         <TemplateFileTree
-          data={templateData}
+          data={templateData!}
           onFileSelect={handleFileSelect}
           selectedFile={activeFile}
           title="File Explorer"
+          onAddFile={wrappedHandleAddFile}
+          onAddFolder={wrappedHandleAddFolder}
+          onDeleteFile={wrappedHandleDeleteFile}
+          onDeleteFolder={wrappedHandleDeleteFolder}
+          onRenameFile={wrappedHandleRenameFile}
+          onRenameFolder={wrappedHandleRenameFolder}
         />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -229,6 +382,7 @@ const MainPlaygroundPage = () => {
                   <TooltipContent>Save All (Ctrl+Shift+S)</TooltipContent>
                 </Tooltip>
 
+             
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -303,42 +457,44 @@ const MainPlaygroundPage = () => {
                     </div>
                   </Tabs>
                 </div>
-                <div className="flex-1 p-4">
-                  {activeFile ? (
-                    <div className="h-full border rounded-md p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-medium">
-                          {activeFile.filename}.{activeFile.fileExtension}
-                        </h3>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleSave(activeFile.id)}
-                          disabled={!activeFile.hasUnsavedChanges}
-                        >
-                          Save
-                        </Button>
+                <div className="flex-1">
+                  <ResizablePanelGroup
+                    direction="horizontal"
+                    className="h-full"
+                  >
+                    <ResizablePanel defaultSize={100}>
+                      <div className="h-full p-4">
+                        {activeFile ? (
+                          <div className="h-full border rounded-md p-4">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="font-medium">
+                                {activeFile.filename}.{activeFile.fileExtension}
+                              </h3>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleSave(activeFile.id)}
+                                disabled={!activeFile.hasUnsavedChanges}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                            <div className="h-[calc(100%-50px)]">
+                              <PlaygroundEditor
+                                activeFile={activeFile}
+                                content={activeFile.content}
+                                
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-muted-foreground">
+                            Select a file to edit
+                          </div>
+                        )}
                       </div>
-                      <textarea
-                        className="w-full h-[calc(100%-50px)] p-2 font-mono text-sm border rounded"
-                        value={activeFile.content}
-                        onChange={(e) => {
-                          const newContent = e.target.value;
-                          setOpenFiles(prev => 
-                            prev.map(file => 
-                              file.id === activeFile.id 
-                                ? { ...file, content: newContent, hasUnsavedChanges: true }
-                                : file
-                            )
-                          );
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-gray-500">
-                      Select a file to edit
-                    </div>
-                  )}
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
                 </div>
               </div>
             ) : (

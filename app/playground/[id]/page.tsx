@@ -24,7 +24,6 @@ import {
 import LoadingStep from "@/modules/playground/components/loader";
 import {PlaygroundEditor} from "@/modules/playground/components/playground-editor";
 import { TemplateFileTree } from "@/modules/playground/components/playground-explorer";
-
 import { useFileExplorer } from "@/modules/playground/hooks/useFileExplorer";
 import { usePlayground } from "@/modules/playground/hooks/usePlaygraound";
 import { findFilePath } from "@/modules/playground/lib";
@@ -32,7 +31,8 @@ import {
   TemplateFile,
   TemplateFolder,
 } from "@/modules/playground/lib/path-to-json";
-
+import WebContainerPreview from "@/modules/webcontainers/components/webcontainer-preview";
+import { useWebContainer } from "@/modules/webcontainers/hooks/useWebContainer";
 import {
   AlertCircle,
   Bot,
@@ -46,6 +46,7 @@ import { useParams } from "next/navigation";
 import React, {
   useCallback,
   useEffect,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -53,10 +54,11 @@ import { toast } from "sonner";
 
 const MainPlaygroundPage = () => {
   const { id } = useParams<{ id: string }>();
-  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(true);
 
   const { playgroundData, templateData, isLoading, error, saveTemplateData } =
     usePlayground(id);
+
 
   const {
     setTemplateData,
@@ -78,6 +80,15 @@ const MainPlaygroundPage = () => {
     updateFileContent
   } = useFileExplorer();
 
+  const {
+    serverUrl,
+    isLoading: containerLoading,
+    error: containerError,
+    instance,
+    writeFileSync,
+    // @ts-ignore
+  } = useWebContainer({ templateData });
+
   const lastSyncedContent = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -95,18 +106,20 @@ const MainPlaygroundPage = () => {
     (newFile: TemplateFile, parentPath: string) => {
       return handleAddFile(
         newFile,
-        parentPath,       
+        parentPath,
+        writeFileSync!,
+        instance,
         saveTemplateData
       );
     },
-    [handleAddFile, saveTemplateData]
+    [handleAddFile, writeFileSync, instance, saveTemplateData]
   );
 
   const wrappedHandleAddFolder = useCallback(
     (newFolder: TemplateFolder, parentPath: string) => {
-      return handleAddFolder(newFolder, parentPath, null, saveTemplateData);
+      return handleAddFolder(newFolder, parentPath, instance, saveTemplateData);
     },
-    [handleAddFolder, saveTemplateData]
+    [handleAddFolder, instance, saveTemplateData]
   );
 
   const wrappedHandleDeleteFile = useCallback(
@@ -203,7 +216,16 @@ const MainPlaygroundPage = () => {
           updatedTemplateData.items
         );
 
-        const newTemplateData = await saveTemplateData(updatedTemplateData);
+          // Sync with WebContainer
+        if (writeFileSync) {
+          await writeFileSync(filePath, fileToSave.content);
+          lastSyncedContent.current.set(fileToSave.id, fileToSave.content);
+          if (instance && instance.fs) {
+            await instance.fs.writeFile(filePath, fileToSave.content);
+          }
+        }
+
+           const newTemplateData = await saveTemplateData(updatedTemplateData);
         setTemplateData(newTemplateData || updatedTemplateData);
 // Update open files
         const updatedOpenFiles = openFiles.map((f) =>
@@ -232,6 +254,8 @@ const MainPlaygroundPage = () => {
     [
       activeFileId,
       openFiles,
+      writeFileSync,
+      instance,
       saveTemplateData,
       setTemplateData,
       setOpenFiles,
@@ -462,38 +486,30 @@ const MainPlaygroundPage = () => {
                     direction="horizontal"
                     className="h-full"
                   >
-                    <ResizablePanel defaultSize={100}>
-                      <div className="h-full p-4">
-                        {activeFile ? (
-                          <div className="h-full border rounded-md p-4">
-                            <div className="flex items-center justify-between mb-4">
-                              <h3 className="font-medium">
-                                {activeFile.filename}.{activeFile.fileExtension}
-                              </h3>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleSave(activeFile.id)}
-                                disabled={!activeFile.hasUnsavedChanges}
-                              >
-                                Save
-                              </Button>
-                            </div>
-                            <div className="h-[calc(100%-50px)]">
-                              <PlaygroundEditor
-                                activeFile={activeFile}
-                                content={activeFile.content}
-                                
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-muted-foreground">
-                            Select a file to edit
-                          </div>
-                        )}
-                      </div>
+                    <ResizablePanel defaultSize={isPreviewVisible ? 50 : 100}>
+                      <PlaygroundEditor
+                        activeFile={activeFile}
+                        content={activeFile?.content || ""}
+                       
+                      />
                     </ResizablePanel>
+
+                    {isPreviewVisible && (
+                      <>
+                        <ResizableHandle />
+                        <ResizablePanel defaultSize={50}>
+                          <WebContainerPreview
+                            templateData={templateData}
+                            instance={instance}
+                            writeFileSync={writeFileSync}
+                            isLoading={containerLoading}
+                            error={containerError}
+                            serverUrl={serverUrl!}
+                            forceResetup={false}
+                          />
+                        </ResizablePanel>
+                      </>
+                    )}
                   </ResizablePanelGroup>
                 </div>
               </div>

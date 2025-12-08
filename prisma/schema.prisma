@@ -76,6 +76,8 @@ model Playground {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   templateFiles TemplateFile[]
+  githubRepoFullName String?
+  githubRepoUrl       String?
 }
 
 

@@ -1,11 +1,19 @@
 
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ArrowDown } from "lucide-react"
 import Image from "next/image"
+import GithubRepoModal from "./github-repo-modal"
 
 const AddRepo = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
   return (
-    <div
+    <>
+      <div
+      onClick={() => setIsModalOpen(true)}
       className="group px-6 py-6 flex flex-row justify-between items-center border rounded-lg bg-muted cursor-pointer 
       transition-all duration-300 ease-in-out
       hover:bg-background hover:border-[#E93F3F] hover:scale-[1.02]
@@ -36,6 +44,12 @@ const AddRepo = () => {
         />
       </div>
     </div>
+
+    <GithubRepoModal
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+    />
+    </>
   )
 }
 

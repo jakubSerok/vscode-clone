@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VS Code Clone
 
-## Getting Started
+A modern, web-based code editor inspired by Visual Studio Code, built with Next.js and TypeScript. This project provides a VS Code-like experience directly in your browser with features like file management, syntax highlighting, and more.
 
-First, run the development server:
+![VS Code Clone Screenshot](public/vscode-clone-screenshot.png)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## ✨ Features
+
+- 🚀 Modern, responsive UI with VS Code-like interface
+- 💾 Real-time code editing and file management
+- 🌈 Syntax highlighting for multiple programming languages
+- 🔍 File explorer and search functionality
+- 📁 Multiple project templates to get started quickly
+- 🔒 User authentication and project management
+- ⚡ Built with Next.js 14 and TypeScript
+- 🎨 Customizable theme (light/dark mode)
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18.0.0 or later
+- npm or yarn
+- Git
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/jakubSerok/vscode-clone.git
+   cd vscode-clone
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. Set up environment variables:
+   Create a `.env.local` file in the root directory and add your environment variables:
+   ```env
+   DATABASE_URL=your_database_url
+   NEXTAUTH_SECRET=your_nextauth_secret
+   GITHUB_CLIENT_ID=your_github_client_id
+   GITHUB_CLIENT_SECRET=your_github_client_secret
+   NEXTAUTH_URL=http://localhost:3000
+   ```
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14, React 18, TypeScript
+- **Styling**: Tailwind CSS, shadcn/ui
+- **Authentication**: NextAuth.js
+- **Database**: Prisma with PostgreSQL
+- **Code Editor**: Monaco Editor
+- **State Management**: Zustand
+- **Form Handling**: React Hook Form with Zod validation
+- **Icons**: Lucide React
+- **UI Components**: Radix UI
+
+## 📁 Project Structure
+
+```
+.
+├── app/                    # App router pages and layouts
+├── components/             # Reusable UI components
+├── modules/                # Feature-based modules
+├── prisma/                 # Database schema and migrations
+├── public/                 # Static files
+└── vsclone-starters/       # Project templates
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Deployment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyourusername%2Fvscode-clone)
 
-## Learn More
+1. Push your code to a GitHub repository
+2. Import the project on Vercel
+3. Add your environment variables
+4. Deploy!
 
-To learn more about Next.js, take a look at the following resources:
+## 🤝 Contributing
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Contributions are welcome! Please follow these steps:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## Deploy on Vercel
+## 📄 License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🙏 Acknowledgments
+
+- [VS Code](https://code.visualstudio.com/) for the inspiration
+- [Next.js](https://nextjs.org/) and [Vercel](https://vercel.com/) for the amazing framework and hosting
+- [shadcn/ui](https://ui.shadcn.com/) for the beautiful components

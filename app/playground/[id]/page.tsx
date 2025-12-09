@@ -60,6 +60,7 @@ const MainPlaygroundPage = () => {
     usePlayground(id);
 
 
+
   const {
     setTemplateData,
     setActiveFileId,
@@ -225,8 +226,8 @@ const MainPlaygroundPage = () => {
           }
         }
 
-           const newTemplateData = await saveTemplateData(updatedTemplateData);
-        setTemplateData(newTemplateData || updatedTemplateData);
+           await saveTemplateData(updatedTemplateData);
+        setTemplateData(updatedTemplateData);
 // Update open files
         const updatedOpenFiles = openFiles.map((f) =>
           f.id === targetFileId
@@ -406,7 +407,7 @@ const MainPlaygroundPage = () => {
                   <TooltipContent>Save All (Ctrl+Shift+S)</TooltipContent>
                 </Tooltip>
 
-             
+          
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -490,7 +491,7 @@ const MainPlaygroundPage = () => {
                       <PlaygroundEditor
                         activeFile={activeFile}
                         content={activeFile?.content || ""}
-                       
+                        
                       />
                     </ResizablePanel>
 
